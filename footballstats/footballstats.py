@@ -4,6 +4,9 @@ from collections import ChainMap
 from concurrent.futures import ProcessPoolExecutor 
 from bs4 import BeautifulSoup
 import pandas as pd
+from footballstats.config import Config as config
+
+logger = Logger().get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -16,29 +19,25 @@ class LeagueStats:
     possession: pd.DataFrame
 
 
-
-##### stats
-def agregate_stats(pages, stats_id):
-    print(f"Fetching {stats_id}")
+def agregate_league_stats(html_pages, stats_id):
+    logger.info(f"Fetching {stats_id} stats")
     datasets = [
-        create_stats_dataset(page, stats_id)
-        for page in pages
+        create_club_stats_dataset(html_page, stats_id)
+        for html_page in html_pages
     ]
-    return pd.concat(
-        objs=datasets, 
-        ignore_index=True
-    )
-    
+    league_stats = pd.concat(objs=datasets, ignore_index=True)
+    return league_stats
+ 
 
-def create_stats_dataset(page, stats_id):
-    soup_object = BeautifulSoup(page, "html.parser")
+def create_club_stats_dataset(html_page, stats_id):
+    soup_object = BeautifulSoup(html_page, "html.parser")
     comment = soup_object\
         .find("div", {"id": stats_id}).contents[5]
-    dataset = extract_records(comment)
+    dataset = extract_club_records(comment)
     return dataset
 
 
-def extract_records(comment):
+def extract_club_records(comment):
     soup_object = BeautifulSoup(comment, "html.parser")
     records =  soup_object.find("tbody").find_all("tr")
     columns = [value["data-stat"] for value in records[-1]]
@@ -51,30 +50,25 @@ def extract_records(comment):
     )
 
 
-def extract_league_stats(pages):
-    all_stats = [
-        "all_stats_passing_10737",  
-        "all_stats_shooting_10737", 
-        "all_stats_passing_types_10737",
-        "all_stats_gca_10737",
-        "all_stats_defense_10737", 
-        "all_stats_possession_10737"
-    ]
-    with ProcessPoolExecutor(max_workers=len(all_stats)) as pool:
+def extract_league_stats(pages, stat_ids):
+    workers = len(all_stats)
+    with ProcessPoolExecutor(max_workers=workers) as pool:
         futures = map(
-            lambda x: pool.submit(agregate_stats, pages, x),
-            all_stats
+            lambda stat_id: pool.submit(
+                agregate_league_stats,
+                pages,
+                stat_id
+            ),
+            stat_ids
         )
         results = [future.result() for future in list(futures)]
         return LeagueStats(*results)
 
 
-
-
-def retrive_league_stats(league_name, season, gender):
+def latest_league_stats(league_name, season, gender):
     nest_asyncio.apply()
     URL = f"https://fbref.com/en/comps/season/{season}"
     LEAGUE_KEY = f"{league_name}_{gender}"
     pages = asyncio.run(main(URL, LEAGUE_KEY))
-    league_stats = extract_league_stats(pages)
+    league_stats = extract_league_stats(pages, config.STAT_IDS)
     return league_stats

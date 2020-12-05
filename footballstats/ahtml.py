@@ -22,7 +22,7 @@ async def fetch_single_html(url, session):
         status = getattr(err, "status"),
         message = getattr(err, "message")
         logger.error(
-            f"aiohttp exception for {url}: ({status}/{message})"
+            f"aiohttp exception for {url}: {status}/{message}"
         )
     except Exception as err:
         attrs = getattr(err, "__dict__")
