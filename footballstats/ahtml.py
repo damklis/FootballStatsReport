@@ -18,7 +18,7 @@ async def fetch_single_html(url, session):
         logger.info(f"Response {response.status} for {url}")
         html = await response.text()
         return html
-    except ClientError, HttpProcessingError as err:
+    except (ClientError, HttpProcessingError) as err:
         status = getattr(err, "status"),
         message = getattr(err, "message")
         logger.error(

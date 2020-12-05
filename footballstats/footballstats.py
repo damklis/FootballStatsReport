@@ -1,3 +1,4 @@
+import re
 import asyncio
 from dataclasses import dataclass
 from collections import ChainMap
@@ -20,7 +21,7 @@ class LeagueStats:
 
 
 def agregate_league_stats(html_pages, stats_id):
-    logger.info(f"Fetching {stats_id} stats")
+    logger.info(f"Fetching {stats_id.pattern} stats")
     datasets = [
         create_club_stats_dataset(html_page, stats_id)
         for html_page in html_pages
@@ -40,7 +41,7 @@ def create_club_stats_dataset(html_page, stats_id):
 def extract_club_records(comment):
     soup_object = BeautifulSoup(comment, "html.parser")
     records =  soup_object.find("tbody").find_all("tr")
-    columns = [value["data-stat"] for value in records[-1]]
+    columns = [record["data-stat"] for record in records[-1]]
     return pd.DataFrame(
         [
             [value.text for value in record] 
@@ -50,22 +51,27 @@ def extract_club_records(comment):
     )
 
 
+def create_stats_pattern(statistic):
+    pattern = f"all_stats_{statistic}_*"
+    return re.compile(pattern)
+
+
 def extract_league_stats(pages, stat_ids):
-    workers = len(all_stats)
+    statistics = map(create_stats_pattern, stat_ids)
+    workers = len(stat_ids)
     with ProcessPoolExecutor(max_workers=workers) as pool:
         futures = map(
-            lambda stat_id: pool.submit(
+            lambda statistic: pool.submit(
                 agregate_league_stats,
                 pages,
-                stat_id
+                statistic
             ),
-            stat_ids
+            statistics
         )
         results = [future.result() for future in list(futures)]
         return LeagueStats(*results)
 
-
-def latest_league_stats(league_name, season, gender):
+def get_latest_league_stats(league_name, season, gender):
     nest_asyncio.apply()
     URL = f"https://fbref.com/en/comps/season/{season}"
     LEAGUE_KEY = f"{league_name}_{gender}"
