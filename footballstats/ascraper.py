@@ -1,35 +1,51 @@
 import aiohttp
 import nest_asyncio
+from aiohttp import ClientError
+from aiohttp.http_exceptions import HttpProcessingError
+
 from footballstats.log import Logger
 
 
 logger = Logger().get_logger(__name__)
 
 
-async def fetch_html(url, session):
-    async with session.get(url=url) as response:
+async def fetch_single_html(url, session):
+    try:
+        response = await session.request(
+            method="GET",
+            url=url
+        )
         response.raise_for_status()
-        logger.info(f"Response {resp.status} for {url}")
+        logger.info(f"Response {response.status} for {url}")
         html = await response.text()
         return html
-
-
-async def main(url, league_key):
-    async with aiohttp.ClientSession() as session:
-        league_path = await extract_domestic_league_url(
-            url, league_key, session
+    except ClientError, HttpProcessingError as err:
+        status = getattr(err, "status"),
+        message = getattr(err, "message")
+        logger.error(
+            f"aiohttp exception for {url}: ({status}/{message})"
         )
-        league_url = await format_url(url, league_path)
-        pages = await extract_club_pages(league_url, session)
-        return pages
+    except Exception as err:
+        attrs = getattr(err, "__dict__")
+        logger.exception(f"Non-aiohttp exception: {attrs}")
 
-        
+
+async def fetch_multiple_htmls(urls, session):
+    logger.info(f"Fetching {len(urls)} urls concurrently:")
+    tasks = [
+        fetch_single_html(url, session)
+        for url in urls
+    ]
+    htmls = await asyncio.gather(*tasks)
+    return htmls
+
+
 async def format_url(base_url, query_path):
     parsed_url = urlparse(base_url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}{query_path}"
 
 
-async def extract_domestic_league_url(url, league_key, session):
+async def extract_domestic_league_path(url, league_key, session):
     content = await fetch_html(url, session)
     records = await extract_domestic_league_records(content)
     tasks = [
@@ -68,10 +84,7 @@ async def extract_club_pages(url, session):
     return htmls
 
 
-async def fetch_htmls(urls, session):
-    tasks = [fetch_html(url, session) for url in urls]
-    htmls = await asyncio.gather(*tasks)
-    return htmls
+
 
 
 async def extract_club_records(content):
@@ -80,10 +93,13 @@ async def extract_club_records(content):
     return records
 
 
-def retrive_league_stats(league_name, season, gender):
-    nest_asyncio.apply()
-    URL = f"https://fbref.com/en/comps/season/{season}"
-    LEAGUE_KEY = f"{league_name}_{gender}"
-    pages = asyncio.run(main(URL, LEAGUE_KEY))
-    league_stats = extract_league_stats(pages)
-    return league_stats
+async def main(url, league_key):
+    async with aiohttp.ClientSession() as session:
+        league_path = await extract_domestic_league_path(
+            url=url, 
+            league_key=league_key, 
+            session=session
+        )
+        league_url = await format_url(url, league_path)
+        pages = await extract_club_pages(league_url, session)
+        return pages
