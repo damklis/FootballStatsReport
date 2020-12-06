@@ -37,15 +37,17 @@ async def extract_domestic_league_path(url, league_key, session):
         for item in items
     ]
     formatted_items = await asyncio.gather(*tasks)
-    leauge_urls = ChainMap(*formatted_items)
-    return dict(leauge_urls).get(league_key)
-
+    league_urls = ChainMap(*formatted_items)
+    league_path = dict(league_urls).get(league_key)
+    if not league_path:
+        raise ValueError("League Unknown!")
+    return league_path
 
 async def extract_domestic_league_items(content):
     soup_object = BeautifulSoup(content)
-    leauges_info = soup_object\
+    leagues_info = soup_object\
         .find("div", {"id":"all_comps_1_fa_club_league_senior"})
-    items = leauges_info.find("tbody").find_all('tr')
+    items = leagues_info.find("tbody").find_all('tr')
     return items
     
 
@@ -76,7 +78,7 @@ async def extract_club_items(content):
     return items
 
     
-async def main(url, league_key):
+async def extract_all_clubs_data(url, league_key):
     async with aiohttp.ClientSession() as session:
         league_path = await extract_domestic_league_path(
             url, league_key, session
@@ -84,11 +86,3 @@ async def main(url, league_key):
         league_url = await format_url(url, league_path)
         html_pages = await extract_club_pages(league_url, session)
         return html_pages
-
-
-def latest_league_stats(league_name, season, gender):
-    URL = f"https://fbref.com/en/comps/season/{season}"
-    LEAGUE_KEY = f"{league_name}_{gender}"
-    pages = asyncio.run(main(URL, LEAGUE_KEY))
-    stats = extract_league_stats(pages, ["shooting", "passing", "passing_types", "gca", "defense", "possession"])
-    return stats
