@@ -12,15 +12,14 @@ from footballstats.config import Config as config
 logger = Logger().get_logger(__name__)
 
 
-
 @dataclass(frozen=True)
 class LeagueStats:
-    shooting: pd.DataFrame
-    passing: pd.DataFrame
-    pass_types: pd.DataFrame
-    goal_shot_creation: pd.DataFrame
-    defensive_actions: pd.DataFrame
-    possession: pd.DataFrame
+    shooting: DataFrame
+    passing: DataFrame
+    pass_types: DataFrame
+    goal_shot_creation: DataFrame
+    defensive_actions: DataFrame
+    possession: DataFrame
 
 
 def aggregate_league_stats(html_pages, stats_id):
@@ -45,7 +44,7 @@ def extract_club_records(comment):
     soup_object = BeautifulSoup(comment, "html.parser")
     records =  soup_object.find("tbody").find_all("tr")
     columns = [record["data-stat"] for record in records[-1]]
-    return pd.DataFrame(
+    return DataFrame(
         [
             [value.text for value in record] 
             for record in records
@@ -63,7 +62,7 @@ def extract_league_stats(html_pages, stat_ids):
     statistics = map(create_statistic_pattern, stat_ids)
     workers = len(stat_ids)
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        futures = map(
+        future_results = map(
             lambda statistic: pool.submit(
                 aggregate_league_stats,
                 html_pages,
@@ -71,20 +70,8 @@ def extract_league_stats(html_pages, stat_ids):
             ),
             statistics
         )
-        results = [future.result() for future in list(futures)]
+        results = [
+            future.result() 
+            for future in list(future_results)
+        ]
         return LeagueStats(*results)
-
-
-
-def get_latest_league_stats(league_name, season, gender):
-    nest_asyncio.apply()
-    URL = f"https://fbref.com/en/comps/season/{season}"
-    LEAGUE_KEY = f"{league_name}_{gender}"
-    pages = asyncio.run(main(URL, LEAGUE_KEY))
-    league_stats = extract_league_stats(pages, config.STAT_IDS)
-    return league_stats
-
-
-
-if __name__ != "__main__":
-    __all__ = ["get_latest_league_stats"]
