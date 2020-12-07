@@ -1,29 +1,15 @@
-%%time
-
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor 
-from urllib.parse import urlparse
 from collections import ChainMap
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-import pandas as pd
-from pandas import DataFrame
 import asyncio
-import logging
-import sys
-import urllib.error
-import urllib.parse
-import re
 import aiohttp
-import nest_asyncio
-from dataclasses import dataclass
-from aiohttp import ClientError
-from aiohttp.http_exceptions import HttpProcessingError
+from bs4 import BeautifulSoup
 
-import logging
+from footballstats.ahtml import (
+    fetch_single_html, 
+    fetch_multiple_htmls
+)
 
-nest_asyncio.apply()
-    
-        
+      
 async def format_url(base_url, query_path):
     parsed_url = urlparse(base_url)
     return f"{parsed_url.scheme}://{parsed_url.netloc}{query_path}"

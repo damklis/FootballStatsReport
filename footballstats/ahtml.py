@@ -1,8 +1,9 @@
+import asyncio
 import aiohttp
 from aiohttp import ClientError
 from aiohttp.http_exceptions import HttpProcessingError
 
-from footballstats.log import Logger
+from footballstats.log.log import Logger
 
 
 logger = Logger().get_logger(__name__)

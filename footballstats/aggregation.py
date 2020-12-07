@@ -1,12 +1,12 @@
 import re
-import asyncio
 from dataclasses import dataclass
 from collections import ChainMap
 from concurrent.futures import ProcessPoolExecutor 
 from bs4 import BeautifulSoup
 import pandas as pd
 from pandas import DataFrame
-from footballstats.config import Config as config
+
+from footballstats.log.log import Logger
 
 
 logger = Logger().get_logger(__name__)
@@ -28,7 +28,10 @@ def aggregate_league_stats(html_pages, stats_id):
         create_club_stats_dataset(html_page, stats_id)
         for html_page in html_pages
     ]
-    league_stats = pd.concat(objs=datasets, ignore_index=True)
+    league_stats = pd.concat(
+        objs=datasets,
+        ignore_index=True
+    )
     return league_stats
  
 
@@ -44,13 +47,14 @@ def extract_club_records(comment):
     soup_object = BeautifulSoup(comment, "html.parser")
     records =  soup_object.find("tbody").find_all("tr")
     columns = [record["data-stat"] for record in records[-1]]
-    return DataFrame(
+    records_df =  DataFrame(
         [
             [value.text for value in record] 
             for record in records
         ],
         columns=columns
     )
+    return records_df
 
 
 def create_statistic_pattern(statistic):

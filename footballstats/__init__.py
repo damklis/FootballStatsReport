@@ -1,7 +1,8 @@
 import asyncio
+import nest_asyncio
 
 from footballstats.ascraper import extract_all_clubs_data
-from footballstats.aggregation import aggregate_league_stats
+from footballstats.aggregation import extract_league_stats
 from footballstats.config import Config as config
 
 

@@ -1,1 +1,1 @@
-from footballstats.log import log, Logger
+# from footballstats.log import log, Logger
